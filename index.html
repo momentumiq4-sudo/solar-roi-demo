@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Commercial Solar ROI Calculator</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2b3445;--text:#e6edf3;--mute:#9aa7b8;--acc:#f5b83d;--acc2:#4cc3a0;--bad:#ff7b72;--focus:#8ab4ff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1rem;margin:0 0 12px;letter-spacing:.02em}
+.sub{color:var(--mute);margin:0 0 18px}
+.grid{display:grid;gap:16px;grid-template-columns:minmax(0,380px) minmax(0,1fr)}
+@media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.tag{display:inline-block;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute);margin-bottom:8px}
+.tag.out{color:var(--acc2);border-color:#2a5d4e}.tag.in{color:var(--acc);border-color:#6b5420}
+fieldset{border:0;padding:0;margin:0}
+.f{margin-bottom:12px}
+label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px}
+.hint{color:var(--mute);font-size:.78rem;font-weight:400}
+input,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;min-height:44px}
+input[aria-invalid=true]{border-color:var(--bad)}
+:is(input,select,button,.pt):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.err{color:var(--bad);font-size:.78rem;min-height:0;margin-top:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:420px){.row2{grid-template-columns:1fr}}
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi .k{color:var(--mute);font-size:.78rem}.kpi .v{font-size:1.4rem;font-weight:700;margin-top:2px;overflow-wrap:anywhere}
+.kpi.hl .v{color:var(--acc)}.neg{color:var(--bad)!important}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:8px}
+.seg button{background:var(--panel2);color:var(--mute);border:0;padding:8px 12px;font:inherit;min-height:40px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--acc);color:#1a1405;font-weight:700}
+.chartbox{overflow-x:auto}svg{width:100%;min-width:480px;height:auto;display:block}
+.pt{cursor:pointer}.readout{min-height:1.5em;color:var(--text);font-size:.88rem;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:520px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600}.scroll{overflow-x:auto}
+details summary{cursor:pointer;color:var(--mute);padding:6px 0}
+ul.n{margin:0;padding-left:18px;color:var(--mute);font-size:.84rem}ul.n li{margin-bottom:4px}
+.disc{border-color:#6b5420;background:#1d1a10;font-size:.85rem}
+.status{font-size:.82rem;color:var(--mute);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Commercial Solar ROI Calculator</h1>
+<p class="sub">First-pass screening estimate for US commercial rooftop solar (TX, CA, FL). Rate and production defaults are illustrative, not verified. Inputs on the left; calculated outputs on the right.</p>
+<div class="grid">
+<form id="f" class="inputs" novalidate autocomplete="off">
+  <section class="card" aria-labelledby="h-site">
+    <span class="tag in">User-provided</span><h2 id="h-site">Site inputs</h2>
+    <fieldset>
+      <div class="f"><label for="monthlyBill">Monthly electricity bill (USD)</label><input id="monthlyBill" type="number" inputmode="decimal" min="0" step="any" value="6000" aria-describedby="e-monthlyBill"><div class="err" id="e-monthlyBill" role="alert"></div></div>
+      <div class="f"><label for="roofSqFt">Usable roof area (sq ft)</label><input id="roofSqFt" type="number" inputmode="decimal" step="any" value="20000" min="0" aria-describedby="e-roofSqFt"><div class="err" id="e-roofSqFt" role="alert"></div></div>
+      <div class="f"><label for="annualKwh">Annual electricity use (kWh) <span class="hint">optional, preferred</span></label><input id="annualKwh" type="number" inputmode="decimal" min="1" step="any" placeholder="From 12 months of bills" aria-describedby="h-annualKwh e-annualKwh"><div class="hint" id="h-annualKwh">If blank, usage is estimated as bill ÷ rate, which overstates kWh when the bill includes demand or fixed charges. The bill still caps savings.</div><div class="err" id="e-annualKwh" role="alert"></div></div>
+      <div class="row2">
+        <div class="f"><label for="state">State</label><select id="state"><option value="TX">Texas</option><option value="CA">California</option><option value="FL">Florida</option></select></div>
+        <div class="f"><label for="propType">Property type</label><select id="propType"><option>Office</option><option>Retail</option><option>Warehouse / industrial</option><option>Restaurant</option><option>Healthcare</option><option>School / institutional</option><option>Multifamily / other</option></select></div>
+      </div>
+    </fieldset>
+  </section>
+  <section class="card" aria-labelledby="h-assume">
+    <span class="tag in">Assumptions panel</span><h2 id="h-assume">Modeling assumptions</h2>
+    <p class="hint" style="margin-top:-6px">All values are editable. Defaults are illustrative placeholders, not verified figures.</p>
+    <fieldset>
+      <div class="row2" id="assumeFields"></div>
+      <div class="f"><label for="periodYears">Analysis period</label><select id="periodYears"><option value="10" selected>10 years</option><option value="15">15 years</option><option value="20">20 years</option><option value="25">25 years</option></select></div>
+    </fieldset>
+    <fieldset>
+      <h2 style="margin-top:6px">Incentives (none assumed)</h2>
+      <div class="f"><label style="display:flex;gap:10px;align-items:center"><input id="incentiveVerified" type="checkbox" style="width:22px;min-height:22px"> Apply an incentive amount confirmed outside this calculator</label>
+        <div class="hint">Eligibility, amounts and deadlines depend on current law and project circumstances. This tool never adds a tax credit automatically.</div></div>
+      <div class="f"><label for="incentiveAmount">User-entered incentive estimate ($)</label><input id="incentiveAmount" type="number" inputmode="decimal" step="any" value="0" disabled aria-describedby="e-incentiveAmount"><div class="err" id="e-incentiveAmount" role="alert"></div></div>
+      <div class="f"><label for="incentiveNote">Source / confirmation note (required)</label><input id="incentiveNote" type="text" disabled aria-describedby="e-incentiveNote"><div class="err" id="e-incentiveNote" role="alert"></div></div>
+    </fieldset>
+    <div class="status" id="incWarn" role="status" style="color:var(--acc)"></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </section>
+</form>
+
+<div class="outputs">
+  <section class="card" aria-labelledby="h-out">
+    <span class="tag out">Calculated</span><h2 id="h-out">Estimated results</h2>
+    <div class="kpis" id="kpis" aria-live="polite"></div>
+    <div class="status" id="limit"></div>
+  </section>
+  <section class="card" aria-labelledby="h-chart">
+    <span class="tag out">Calculated</span><h2 id="h-chart">10-year cash flow</h2>
+    <div class="seg" role="group" aria-label="Chart view">
+      <button type="button" data-mode="cum" aria-pressed="true">Cumulative net position</button>
+      <button type="button" data-mode="ann" aria-pressed="false">Annual net savings</button>
+    </div>
+    <div class="chartbox"><svg id="chart" viewBox="0 0 640 300" role="img" aria-label="10-year cash flow chart"></svg></div>
+    <div class="readout" id="readout">Hover or focus a point for details.</div>
+    <details><summary>View data table</summary><div class="scroll"><table id="tbl"></table></div></details>
+  </section>
+  <section class="card" aria-labelledby="h-scn">
+    <span class="tag out">Calculated</span><h2 id="h-scn">Sensitivity scenarios (illustrative, not predictions)</h2>
+    <div class="scroll"><table id="scnTbl"></table></div>
+    <p class="hint">Scenarios shift cost, production, self-consumption and escalation together by fixed illustrative amounts. They show how sensitive the result is; they are not forecasts or confidence ranges.</p>
+  </section>
+  <section class="card" aria-labelledby="h-how">
+    <span class="tag out">Documentation</span><h2 id="h-how">Assumptions, units &amp; calculation steps</h2>
+    <details><summary>Show assumptions, units and every calculation step</summary>
+      <h2>Assumptions in use</h2><div class="scroll"><table id="asmTbl"></table></div>
+      <h2 style="margin-top:14px">Calculation steps</h2><div class="scroll"><table id="stepsTbl"></table></div>
+      <ul class="n" style="margin-top:12px">
+        <li>Caps: self-consumed energy cannot exceed annual usage, and savings in year n cannot exceed the annual bill escalated at the same rate (usage held constant). Excess production earns $0 credit here. A bill is not the same as energy use: demand and fixed charges are not separable without the tariff.</li>
+        <li>Payback is searched only inside the selected period; if the cumulative net cash flow stays negative the result reads “Not reached”, never a projected figure.</li>
+        <li>Not modeled: demand charges, time-of-use or net-metering rules, inverter replacement, financing cost, taxes, depreciation, discounting, roof repair.</li>
+      </ul>
+      <h2 style="margin-top:14px">Needs review by a qualified solar professional</h2>
+      <ul class="n"><li>Power density and usable area (setbacks, obstructions, structure, condition).</li><li>Annual production per kW (shading, tilt, azimuth, soiling, losses).</li><li>Annual kWh versus bill (demand/fixed charges), the effective marginal rate, and tariff structure; self-consumption and export credit.</li><li>Installed cost and scope; maintenance and inverter replacement.</li><li>Escalation and degradation rates.</li><li>Incentive eligibility, amounts, deadlines, and interconnection requirements.</li></ul>
+    </details>
+  </section>
+  <section class="card disc" role="note"><strong>Disclaimer.</strong> Results are rough estimates based solely on the inputs above. They are not a financing, engineering, legal, or tax opinion, and no tax credit or incentive is assumed or guaranteed. Actual results depend on site design, utility tariffs, interconnection, incentives, and financing terms. Obtain a site-specific engineering design, utility rate analysis, and professional tax advice before making decisions.</section>
+</div>
+</div>
+</div>
+
+<!-- ============ CALCULATION MODEL (pure functions, no DOM access) ============ -->
+<script id="model">
+const SolarModel = (() => {
+  'use strict';
+  const PERIODS = [10, 15, 20, 25];
+  // ILLUSTRATIVE defaults only. Not verified, not universal. Users must replace with the actual tariff / production model.
+  const STATE_DEFAULTS = {
+    TX: { name: 'Texas',      ratePerKwh: 0.14, yieldPerKw: 1500 },
+    CA: { name: 'California', ratePerKwh: 0.22, yieldPerKw: 1650 },
+    FL: { name: 'Florida',    ratePerKwh: 0.12, yieldPerKw: 1450 }
+  };
+  const LIMITS = { // [min, max, label, unit]; no negative values accepted anywhere
+    monthlyBill:[0,1e6,'Monthly bill','$'], roofSqFt:[0,5e6,'Roof area','sq ft'], wattsPerSqFt:[1,25,'Power density','W/sq ft'],
+    costPerWatt:[0.1,6,'Installed cost','$/W'], ratePerKwh:[0.01,1,'Electricity rate','$/kWh'], selfConsumption:[0,100,'Self-consumption','%'],
+    yieldPerKw:[100,2500,'Annual production','kWh/kW-yr'], escalation:[0,15,'Rate escalation','%/yr'], degradation:[0,5,'Degradation','%/yr'],
+    maintenance:[0,100,'Maintenance','$/kW-yr'], incentiveAmount:[0,1e9,'Incentive amount','$']
+  };
+  function validate(i) {
+    const errs = {};
+    for (const k in LIMITS) {
+      if (k === 'incentiveAmount' && !i.incentiveVerified) continue;
+      const [lo, hi, name, u] = LIMITS[k], v = i[k];
+      if (typeof v !== 'number' || !Number.isFinite(v)) errs[k] = name + ' is required (a number).';
+      else if (v < lo || v > hi) errs[k] = name + ' must be between ' + lo.toLocaleString('en-US') + ' and ' + hi.toLocaleString('en-US') + ' ' + u + '.';
+    }
+    if (i.annualKwh !== null && i.annualKwh !== undefined && (!Number.isFinite(i.annualKwh) || i.annualKwh < 1 || i.annualKwh > 1e9)) errs.annualKwh = 'Annual use must be between 1 and 1,000,000,000 kWh (or leave blank).';
+    if (!PERIODS.includes(i.periodYears)) errs.periodYears = 'Choose an analysis period.';
+    if (i.incentiveVerified && !String(i.incentiveNote || '').trim()) errs.incentiveNote = 'Describe the verified eligibility basis (required to apply an incentive).';
+    return errs;
+  }
+  function compute(i) {
+    const N = i.periodYears, sc = i.selfConsumption / 100, d = i.degradation / 100, e = i.escalation / 100;
+    const annualBill = i.monthlyBill * 12;
+    const hasKwh = i.annualKwh !== null && i.annualKwh !== undefined && Number.isFinite(i.annualKwh);
+    const usageKwh = hasKwh ? i.annualKwh : annualBill / i.ratePerKwh;  // preferred: user-entered kWh; fallback rate validated > 0
+    const sizeKw = i.roofSqFt * i.wattsPerSqFt / 1000;
+    const grossCost = sizeKw * 1000 * i.costPerWatt;
+    const incentive = i.incentiveVerified ? Math.min(Math.max(0, i.incentiveAmount), grossCost) : 0; // only if user-verified
+    const netCost = grossCost - incentive;
+    const rows = [{ year: 0, production: 0, savings: 0, om: 0, net: -netCost, cum: -netCost, capped: false }];
+    let cum = -netCost, cumSav = 0, cumOm = 0, pb = { status: sizeKw > 0 ? 'not_reached' : 'no_system', years: null };
+    if (sizeKw > 0 && netCost === 0) pb = { status: 'reached', years: 0 };
+    for (let y = 1; y <= N; y++) {
+      const production = sizeKw * i.yieldPerKw * Math.pow(1 - d, y - 1);
+      const price = i.ratePerKwh * Math.pow(1 + e, y - 1);
+      const selfKwh = Math.min(production * sc, usageKwh);                // cannot offset more energy than is used
+      const uncapped = selfKwh * price;
+      const billCap = annualBill * Math.pow(1 + e, y - 1);            // constant usage, escalating price
+      const savings = Math.min(uncapped, billCap), om = sizeKw * i.maintenance, net = savings - om, prev = cum;
+      cum += net; cumSav += savings; cumOm += om;
+      if (pb.status === 'not_reached' && cum >= 0) pb = { status: 'reached', years: (y - 1) + (-prev / net) }; // net>0 whenever cum crosses up
+      rows.push({ year: y, production, savings, om, net, cum, capped: production * sc > usageKwh || uncapped > billCap });
+    }
+    const y1 = rows[1], uncapped1 = Math.min(y1.production * sc, usageKwh) * i.ratePerKwh;
+    const simple = (y1.net > 0 && netCost > 0) ? netCost / y1.net : null;
+    const steps = [
+      ['1', 'Annual electricity bill', 'monthly bill × 12', annualBill, 'USD'],
+      ['2', hasKwh ? 'Annual usage (user-entered)' : 'Estimated annual usage', hasKwh ? 'entered annual kWh (preferred input)' : 'annual bill ÷ rate (overstates kWh if bill includes demand/fixed charges)', usageKwh, 'kWh'],
+      ['3', 'System capacity', 'roof area × power density ÷ 1000', sizeKw, 'kW'],
+      ['4', 'Year-1 production', 'capacity × kWh/kW-yr', y1.production, 'kWh'],
+      ['5', 'Year-1 self-consumed energy', 'production × self-consumption %', y1.production * sc, 'kWh'],
+      ['6', 'Year-1 savings before cap', 'min(self-consumed kWh, annual usage) × rate', uncapped1, 'USD'],
+      ['7', 'Year-1 bill cap', 'annual bill (savings cannot exceed it)', annualBill, 'USD'],
+      ['8', 'Year-1 bill savings', 'min(step 6, step 7)', y1.savings, 'USD'],
+      ['9', 'Year-1 maintenance', 'capacity × $/kW-yr', y1.om, 'USD'],
+      ['10', 'Gross installed cost', 'capacity × 1000 × $/W', grossCost, 'USD'],
+      ['11', 'User-entered incentive applied (not verified by this tool)', 'only if user opts in with a note; capped at gross cost; else 0', incentive, 'USD'],
+      ['12', 'Net upfront cost', 'step 10 − step 11', netCost, 'USD'],
+      ['13', 'Year-n production / price', 'prod₁ × (1 − degradation)^(n−1);  rate × (1 + escalation)^(n−1)', null, 'text'],
+      ['14', 'Year-n savings', 'min( min(prodₙ × self-consumption, annual usage) × priceₙ,  bill × (1 + escalation)^(n−1) )', null, 'text'],
+      ['15', 'Cumulative savings, ' + N + ' yr', 'Σ savingsₙ, n = 1…' + N, cumSav, 'USD'],
+      ['16', 'Cumulative maintenance, ' + N + ' yr', 'Σ (capacity × $/kW-yr), flat, n = 1…' + N, cumOm, 'USD'],
+      ['17', 'Net savings, ' + N + ' yr', 'step 15 − step 16 − step 12', cum, 'USD'],
+      ['18', 'Payback (cash-flow crossover)', 'first year cumulative net ≥ 0, linear interpolation inside that year; only searched within ' + N + ' yr',
+        pb.years, pb.status === 'reached' ? 'years' : 'text', pb.status === 'reached' ? null : (pb.status === 'no_system' ? 'No system (capacity is 0)' : 'Not reached within ' + N + ' years')],
+      ['19', 'Cross-check: simple payback', 'step 12 ÷ (year-1 savings − year-1 maintenance); ignores escalation and degradation', simple, simple === null ? 'text' : 'years', simple === null ? 'n/a (no positive year-1 net savings)' : null]
+    ];
+    return { N, sizeKw, annualBill, usageKwh, grossCost, incentive, netCost, year1Production: y1.production, year1Savings: y1.savings,
+      year1Capped: y1.capped, offsetPct: usageKwh > 0 ? 100 * Math.min(y1.production * sc, usageKwh) / usageKwh : null, usageSource: hasKwh ? 'user' : 'bill',
+      cumSavings: cumSav, cumMaintenance: cumOm, netSavings: cum, payback: pb, simplePayback: simple, rows, steps };
+  }
+  // Illustrative low/base/high sensitivity scenarios (NOT predictions); each adjusted input is clamped to its allowed range.
+  function scenarios(i) {
+    const cl = (v, k) => Math.min(LIMITS[k][1], Math.max(LIMITS[k][0], v));
+    const mk = (label, desc, cf, yf, sd, ed) => ({ label, desc, r: compute({ ...i, costPerWatt: cl(i.costPerWatt * cf, 'costPerWatt'),
+      yieldPerKw: cl(i.yieldPerKw * yf, 'yieldPerKw'), selfConsumption: cl(i.selfConsumption + sd, 'selfConsumption'), escalation: cl(i.escalation + ed, 'escalation') }) });
+    return [mk('Low', 'cost +20%, production −10%, self-consumption −10 pts, escalation −1 pt', 1.2, 0.9, -10, -1), mk('Base', 'as entered', 1, 1, 0, 0),
+      mk('High', 'cost −10%, production +10%, self-consumption +10 pts, escalation +1 pt', 0.9, 1.1, 10, 1)];
+  }
+  return { compute, validate, scenarios, STATE_DEFAULTS, LIMITS, PERIODS };
+})();
+</script>
+
+<!-- ============ UI (reads inputs, calls SolarModel, renders) ============ -->
+<script id="ui">
+(() => {
+  const $ = id => document.getElementById(id), M = SolarModel;
+  const usd = n => (n < 0 ? '−' : '') + new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.abs(n));
+  const num = (v, d = 0) => v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  // Editable assumptions. ill = value is an ILLUSTRATIVE state default (not verified).
+  const FIELDS = [
+    ['wattsPerSqFt', 'Power density', 'W/sq ft', 12, 'DC watts per sq ft of usable roof. Varies with module, racking, setbacks, obstructions.'],
+    ['costPerWatt', 'Installed cost', '$/W', 2.0, 'All-in installed cost before any incentive.'],
+    ['ratePerKwh', 'Electricity rate', '$/kWh', null, 'Effective marginal price of electricity displaced by solar (not necessarily total bill ÷ kWh).', 1],
+    ['selfConsumption', 'Assumed self-consumption', '%', 90, 'Assumed share of solar kWh that offsets purchased power. Not based on hourly load data; the rest is assumed exported at $0 credit.'],
+    ['yieldPerKw', 'Annual production', 'kWh/kW-yr', null, 'Year-1 output per installed kW (site-specific).', 1],
+    ['escalation', 'Rate escalation', '%/yr', 3, 'Annual increase in electricity price.'],
+    ['degradation', 'Degradation', '%/yr', 0.5, 'Annual production loss, compounding.'],
+    ['maintenance', 'Maintenance', '$/kW-yr', 15, 'Flat annual cost per installed kW (no inflation, no inverter replacement).']
+  ];
+  const host = $('assumeFields');
+  FIELDS.forEach(([id, label, unit, val, hint]) => {
+    const d = document.createElement('div'); d.className = 'f';
+    const l = document.createElement('label'); l.htmlFor = id; l.textContent = label + ' (' + unit + ')';
+    const i = document.createElement('input'); Object.assign(i, { id, type: 'number', step: 'any', inputMode: 'decimal' }); if (val !== null) i.value = val;
+    i.setAttribute('aria-describedby', 'h-' + id + ' e-' + id);
+    const h = document.createElement('div'); h.className = 'hint'; h.id = 'h-' + id; h.textContent = hint + ' Allowed: ' + M.LIMITS[id][0] + '–' + M.LIMITS[id][1] + ' ' + M.LIMITS[id][3] + '.';
+    const e = document.createElement('div'); e.className = 'err'; e.id = 'e-' + id; e.setAttribute('role', 'alert');
+    d.append(l, i, h, e); host.append(d);
+  });
+  const numIds = Object.keys(M.LIMITS), dirty = { ratePerKwh: false, yieldPerKw: false };
+  let mode = 'cum', last = null, inp = null;
+
+  function applyDefaults() {
+    const s = M.STATE_DEFAULTS[$('state').value];
+    ['ratePerKwh', 'yieldPerKw'].forEach(k => { if (!dirty[k]) $(k).value = s[k]; });
+    srcLabels();
+  }
+  function srcLabels() {
+    const s = M.STATE_DEFAULTS[$('state').value];
+    ['ratePerKwh', 'yieldPerKw'].forEach(k => {
+      const base = FIELDS.find(f => f[0] === k)[4] + ' Allowed: ' + M.LIMITS[k][0] + '–' + M.LIMITS[k][1] + ' ' + M.LIMITS[k][3] + '.';
+      $('h-' + k).textContent = base + (dirty[k] ? ' Source: user-entered.' : ' ILLUSTRATIVE default for ' + s.name + ', not a verified or universal value. Replace with the customer’s tariff / production model.');
+    });
+  }
+  function read() {
+    const o = {}; numIds.forEach(k => { const v = $(k).value.trim(); o[k] = v === '' ? NaN : Number(v); });
+    o.periodYears = Number($('periodYears').value); const kv = $('annualKwh').value.trim(); o.annualKwh = kv === '' ? null : Number(kv); o.incentiveVerified = $('incentiveVerified').checked; o.incentiveNote = $('incentiveNote').value;
+    return o;
+  }
+  function table(t, head, rows) {
+    t.replaceChildren(); const h = t.insertRow();
+    head.forEach(x => { const c = document.createElement('th'); c.scope = 'col'; c.textContent = x; h.append(c); });
+    rows.forEach(r => { const tr = t.insertRow(); r.forEach(v => tr.insertCell().textContent = v); });
+  }
+  function kpi(k, v, cls, note) {
+    const d = document.createElement('div'); d.className = 'kpi ' + (cls || '');
+    const a = document.createElement('div'); a.className = 'k'; a.textContent = k;
+    const b = document.createElement('div'); b.className = 'v'; b.textContent = v; if (v.startsWith('−')) b.classList.add('neg'); d.append(a, b);
+    if (note) { const n = document.createElement('div'); n.className = 'k'; n.textContent = note; d.append(n); }
+    return d;
+  }
+  const fmt = (v, u, alt) => alt || (v === null ? '—' : u === 'USD' ? usd(v) : u === 'kWh' ? num(v) + ' kWh' : u === 'kW' ? num(v, 1) + ' kW' : u === 'years' ? num(v, 1) + ' years' : String(v));
+
+  function render() {
+    inp = read(); const errs = M.validate(inp);
+    ['wattsPerSqFt','costPerWatt','ratePerKwh','selfConsumption','yieldPerKw','escalation','degradation','maintenance','monthlyBill','roofSqFt','incentiveAmount','incentiveNote','annualKwh'].forEach(k => {
+      const e = $('e-' + k), f = $(k); if (e) e.textContent = errs[k] || ''; if (f) f.setAttribute('aria-invalid', errs[k] ? 'true' : 'false');
+    });
+    $('incentiveAmount').disabled = !inp.incentiveVerified; $('incentiveNote').disabled = !inp.incentiveVerified;
+    const kp = $('kpis'); kp.replaceChildren();
+    if (Object.keys(errs).length) {
+      $('status').textContent = 'Fix the highlighted fields to see results.'; kp.append(kpi('Results unavailable', '—'));
+      $('limit').textContent = ''; last = null; drawChart(); table($('tbl'), [], []); table($('stepsTbl'), [], []); table($('asmTbl'), [], []); table($('scnTbl'), [], []); $('incWarn').textContent = ''; return;
+    }
+    $('status').textContent = '';
+    const r = last = M.compute(inp), N = r.N;
+    const pb = r.payback.status === 'reached' ? num(r.payback.years, 1) + ' years' : r.payback.status === 'no_system' ? 'No system (roof area is 0)' : 'Not reached within ' + N + ' years';
+    kp.append(kpi('Estimated system size', num(r.sizeKw, 1) + ' kW'), kpi('Year-1 production', num(r.year1Production) + ' kWh'),
+      kpi('First-year bill savings', usd(r.year1Savings), '', r.year1Capped ? 'Capped at annual bill (' + usd(r.annualBill) + ')' : ''),
+      kpi('Cumulative savings, ' + N + ' yr', usd(r.cumSavings)), kpi('Cumulative maintenance, ' + N + ' yr', usd(r.cumMaintenance)),
+      kpi('Payback', pb, 'hl', r.payback.status === 'not_reached' ? 'No extrapolation beyond the selected period' : ''), kpi(N + '-year net savings', usd(r.netSavings), 'hl'));
+    $('h-chart').textContent = N + '-year cash flow';
+    $('limit').textContent = 'Net upfront cost ' + usd(r.netCost) + ' (' + usd(r.grossCost) + ' gross − ' + usd(r.incentive) + ' user-entered incentive). Usage basis: ' + (r.usageSource === 'user' ? 'entered annual kWh' : 'bill ÷ rate (estimate)') + ' = ' + num(r.usageKwh) + ' kWh. ' +
+      (r.offsetPct === null ? 'Bill is $0, so offset share is undefined.' : 'Year-1 solar offset ≈ ' + num(r.offsetPct, 0) + '% of annual usage (capped at 100%).') + ' Property type (' + $('propType').value + ') is context only.';
+    drawChart();
+    $('incWarn').textContent = r.incentive > 0 ? 'This incentive amount is user-entered and has not been independently verified by this tool.' : '';
+    table($('scnTbl'), ['Scenario', 'Assumption changes', 'Year-1 savings', 'Payback', N + '-yr net savings'], M.scenarios(inp).map(s => [s.label, s.desc, usd(s.r.year1Savings),
+      s.r.payback.status === 'reached' ? num(s.r.payback.years, 1) + ' yr' : s.r.payback.status === 'no_system' ? 'No system' : 'Not within ' + N + ' yr', usd(s.r.netSavings)]));
+    table($('tbl'), ['Year', 'Production kWh', 'Savings', 'Maintenance', 'Annual net', 'Cumulative net', 'Cap applied (usage or bill)'],
+      r.rows.map(w => [w.year, num(w.production), usd(w.savings), usd(w.om), usd(w.net), usd(w.cum), w.year ? (w.capped ? 'Yes' : 'No') : '—']));
+    table($('stepsTbl'), ['#', 'Step', 'Formula', 'Result'], r.steps.map(s => [s[0], s[1], s[2], fmt(s[3], s[4], s[5])]));
+    const src = k => (k === 'ratePerKwh' || k === 'yieldPerKw') && !dirty[k] ? 'Illustrative default' : 'User-entered';
+    table($('asmTbl'), ['Assumption', 'Value', 'Unit', 'Source'], [
+      ['Monthly bill', num(inp.monthlyBill), '$/month', 'User-entered'], ['Usable roof area', num(inp.roofSqFt), 'sq ft', 'User-entered'],
+      ...FIELDS.map(f => [f[1], String(inp[f[0]]), f[2], src(f[0])]), ['Analysis period', String(N), 'years', 'User-selected'],
+      ['Incentive applied', inp.incentiveVerified ? usd(r.incentive) : '$0', '$', inp.incentiveVerified ? 'User-entered, not independently verified: ' + inp.incentiveNote.trim() : 'None assumed']]);
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t !== undefined) e.textContent = t; return e; };
+  function drawChart() {
+    const svg = $('chart'); svg.replaceChildren();
+    if (!last) { svg.append(el('text', { x: 320, y: 150, fill: '#9aa7b8', 'text-anchor': 'middle' }, 'Enter valid inputs to see the chart.')); return; }
+    const W = 640, H = 300, m = { l: 70, r: 16, t: 14, b: 34 }, N = last.N, rows = last.rows.filter(r => mode === 'cum' || r.year > 0);
+    const vals = rows.map(r => mode === 'cum' ? r.cum : r.net); let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+    if (hi === lo) hi = lo + 1; const pad = (hi - lo) * 0.08; lo -= lo < 0 ? pad : 0; hi += pad;
+    const pw = W - m.l - m.r, X = mode === 'cum' ? y => m.l + y / N * pw : y => m.l + (y - 0.5) / N * pw, Y = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
+    for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4, y = Y(v);
+      svg.append(el('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: '#2b3445' }), el('text', { x: m.l - 8, y: y + 4, fill: '#9aa7b8', 'font-size': 11, 'text-anchor': 'end' }, usd(Math.round(v / 1000) * 1000).replace(/,000$/, 'k'))); }
+    svg.append(el('line', { x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), stroke: '#9aa7b8', 'stroke-dasharray': '4 3' }));
+    const stepX = N > 10 ? 5 : 1; rows.forEach(r => { if (r.year % stepX === 0) svg.append(el('text', { x: X(r.year), y: H - 12, fill: '#9aa7b8', 'font-size': 11, 'text-anchor': 'middle' }, 'Y' + r.year)); });
+    if (mode === 'cum') svg.append(el('polyline', { points: rows.map(r => X(r.year) + ',' + Y(r.cum)).join(' '), fill: 'none', stroke: '#f5b83d', 'stroke-width': 2.5 }));
+    const bw = pw / N * 0.6, pbx = last.payback.status === 'reached' && mode === 'cum' ? X(last.payback.years) : null;
+    if (pbx !== null) svg.append(el('line', { x1: pbx, x2: pbx, y1: m.t, y2: H - m.b, stroke: '#4cc3a0', 'stroke-dasharray': '3 3' }), el('text', { x: pbx + 4, y: m.t + 10, fill: '#4cc3a0', 'font-size': 11 }, 'Payback'));
+    rows.forEach(r => {
+      const v = mode === 'cum' ? r.cum : r.net, cx = X(r.year), good = v >= 0; let n;
+      if (mode === 'cum') n = el('circle', { cx, cy: Y(v), r: 6, fill: good ? '#4cc3a0' : '#f5b83d', stroke: '#0d1117', 'stroke-width': 2 });
+      else n = el('rect', { x: cx - bw / 2, y: Math.min(Y(v), Y(0)), width: bw, height: Math.max(1, Math.abs(Y(v) - Y(0))), fill: good ? '#4cc3a0' : '#ff7b72', rx: 2 });
+      n.setAttribute('class', 'pt'); n.setAttribute('tabindex', '0'); n.setAttribute('role', 'img');
+      n.setAttribute('aria-label', 'Year ' + r.year + ' ' + (mode === 'cum' ? 'cumulative' : 'annual') + ' net ' + usd(v));
+      const show = () => { $('readout').textContent = 'Year ' + r.year + ': ' + (mode === 'cum' ? 'cumulative net ' : 'annual net ') + usd(v) + (r.year ? ' (savings ' + usd(r.savings) + (r.capped ? ', bill cap applied' : '') + ', maintenance ' + usd(r.om) + ')' : ' (net upfront cost)'); };
+      ['mouseenter', 'focus', 'click'].forEach(ev => n.addEventListener(ev, show)); svg.append(n);
+    });
+    svg.setAttribute('aria-label', (mode === 'cum' ? 'Cumulative net cash position' : 'Annual net savings') + ' by year, ' + N + '-year analysis');
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.mode; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('readout').textContent = 'Hover or focus a point for details.'; drawChart(); }));
+  $('state').addEventListener('change', () => { applyDefaults(); render(); });
+  ['ratePerKwh', 'yieldPerKw'].forEach(k => $(k).addEventListener('input', () => { dirty[k] = true; srcLabels(); }));
+  ['f'].forEach(id => { $(id).addEventListener('input', render); $(id).addEventListener('change', render); $(id).addEventListener('submit', e => e.preventDefault()); });
+  applyDefaults(); render();
+})();
+</script>
+</body>
+</html>
